@@ -1,4 +1,4 @@
-# HTTP Request library
+# Virtalis Reach Template Rules Generator
 A visionary render plugin to ease the creation of Rules for a [Virtalis Reach](https://www.virtalis.com/products/virtalis-reach) Project.
 
 Makes use of this JSON Lua library for encoding: https://github.com/rxi/json.lua
