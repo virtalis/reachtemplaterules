@@ -21,6 +21,15 @@ For Assemblies and Materials there will be a 'Create Change Property Rule' conte
 
 Again, the JSON of the rule will be printed to the Log for you to Copy.
 
+### Formatting for Reach
+
+When copying the JSON rules from the lod to enter into Reach, ensure that you format them into a JSON array structure; separate each rule with a comma and enclose it all inside an open and closed square bracket like so: 
+```json
+[
+  {"Type":"DeleteNodesRule","Pattern":"/:Assembly;MyAssemblyName"},
+  {"Type":"DeleteNodesRule","Pattern":"/:Assembly;AnotherAssemblyToDelete"}
+]
+```
 
 ## License
 MIT
