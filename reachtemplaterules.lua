@@ -16,7 +16,7 @@ DeleteNodesRule = {
   Pattern = ""
 }
 
--- Definition of a DeleteNodesRule, used to serialize to json
+-- Definition of a ChangePropertyRule, used to serialize to json
 ChangePropertyRule = {
   Type = "ChangePropertyRule",
   Pattern = "",
@@ -25,7 +25,7 @@ ChangePropertyRule = {
 }
 
 local function version()
-  return "0.1.0"
+  return "0.2.0"
 end
 
 -- Initialize the context menu node for creating a DeleteNodesRule
@@ -39,24 +39,43 @@ local function initDeleteNodeContext()
   g_deleteNodesRuleContextMenu.Command = modname .. ".createDeleteNodesRuleCallback"
 end
 
+-- Adds Create Change Property context menu option for every property of a metanode to
+-- Adds a context menu option to create an array of json rules for ALL PROPERTIES on a node
+local function addContextForMetanode(metanodeType)
+  propCount = vrMetaNodeGetPropertyCount(metanodeType)
+
+  for i=0, propCount-1, 1 do
+    local name, type, description, canBeSaved, elements = vrMetaNodeGetPropertyByIndex(metanodeType, i)
+
+    addCtx(modname .. ".contextPropertyUpdate", name, name, metanodeType, g_changePropertyContextContainer, "Generate a " .. name .. " property change rule for this node", nil, nil, nil, "Edit")
+  end
+
+  -- Adds a context menu option named "ALL PROPERTIES" which will create a json array of rules for every single property in one go.
+  addCtx(modname .. ".contextGenerateRuleForAllProperties", "ALL PROPERTIES", metanodeType, metanodeType, g_changePropertyContextContainer, "Generate property update rule for all properties on this node", nil, nil, nil, "Edit")
+end
+
 -- Initialize the context menu node for creating a ChangePropertyRule
 local function initChangePropertyNodeContext()
   print(name(), "Initializing Change Property Context Menu")
 
   g_changePropertyContextContainer = addCtx(nil, "Create Change Property Rule", nil, nil, g_reachContextMenu, nil, nil, nil)
 
-  -- Assembly
-  addCtx(modname .. ".contextAssemblyEnabled", "Enabled", nil, "Assembly", g_changePropertyContextContainer, "Generate an enabled state rule for this assembly", nil, nil, nil, "Edit")
-  
-  -- Create Context Menu options for StdMaterial properties.
-  addCtx(modname .. ".contextMaterialProperty", "Diffuse", "Diffuse", "StdMaterial", g_changePropertyContextContainer, "Generate a Diffuse property change rule for this material", nil, nil, nil, "Edit")
-  addCtx(modname .. ".contextMaterialProperty", "Reflectivity", "Reflectivity", "StdMaterial", g_changePropertyContextContainer, "Generate a Reflectivity property change rule for this material", nil, nil, nil, "Edit")
-  addCtx(modname .. ".contextMaterialProperty", "Smoothness", "Smoothness", "StdMaterial", g_changePropertyContextContainer, "Generate a Reflectivity property change rule for this material", nil, nil, nil, "Edit")
-  addCtx(modname .. ".contextMaterialProperty", "Metalness", "Metalness", "StdMaterial", g_changePropertyContextContainer, "Generate a Metalness property change rule for this material", nil, nil, nil, "Edit")
-  addCtx(modname .. ".contextMaterialProperty", "Ambient", "Ambient", "StdMaterial", g_changePropertyContextContainer, "Generate as Ambient property change rule for this material", nil, nil, nil, "Edit")
-  addCtx(modname .. ".contextMaterialProperty", "Emissive", "Emissive", "StdMaterial", g_changePropertyContextContainer, "Generate an Emissive property change rule for this material", nil, nil, nil, "Edit")
-  addCtx(modname .. ".contextMaterialProperty", "EmissiveIntensity", "EmissiveIntensity", "StdMaterial", g_changePropertyContextContainer, "Generate an EmissiveIntensity property change rule for this material", nil, nil, nil, "Edit")
-  addCtx(modname .. ".contextMaterialProperty", "Opacity", "Opacity", "StdMaterial", g_changePropertyContextContainer, "Generate a Opacity property change rule for this material", nil, nil, nil, "Edit")
+  addContextForMetanode("Light")
+  addContextForMetanode("StdMaterial")
+  addContextForMetanode("Assembly")
+  addContextForMetanode("Visual")
+  addContextForMetanode("GUI")
+  addContextForMetanode("Stack")
+  addContextForMetanode("Billboard")
+  addContextForMetanode("Button")
+  addContextForMetanode("Label")
+  addContextForMetanode("Panel")
+  addContextForMetanode("EventHandler")
+  addContextForMetanode("Script")
+  addContextForMetanode("Sequence")
+  addContextForMetanode("AssemblyTrack")
+  addContextForMetanode("Animation")
+  addContextForMetanode("AnimationFramePRS")
 end
 
 local function init()
@@ -98,27 +117,46 @@ local function createDeleteNodesRuleCallback(node)
   print(ruleJson)
 end
 
--- Callback for the Change Property context menu option for the 'Enabled' property on Assembly nodes.
--- Prints the json-ified rule to the log.
-local function contextAssemblyEnabled(node)
-  rule = ChangePropertyRule
-  rule.Pattern = getNodePathAsRulePattern(node)
-  rule.PropertyName = "Enabled"
-  rule.Value = node.Enabled == true and "1" or "0"
-
-  ruleJson = json.encode(rule)
-  print(ruleJson)
-end
-
 -- Callback for a Create Change Property Rule context menu option on a Material.
 -- Prints the json-ified rule to the log.
-local function contextMaterialProperty(node, propertyName)
+local function contextPropertyUpdate(node, propertyName)
   rule = ChangePropertyRule
   rule.Pattern = getNodePathAsRulePattern(node)
   rule.PropertyName = propertyName
   rule.Value = tostring(vrNodeGetValue(node, propertyName)):gsub(',', '')
   ruleJson = json.encode(rule)
   print(ruleJson)
+end
+
+-- Callback to create an array of Change Property Rules for every property on a node
+local function contextGenerateRuleForAllProperties(node, metanode)
+  rules = {}  
+
+  propCount = vrMetaNodeGetPropertyCount(metanode)
+
+  for i=0, propCount-1, 1 do
+    local propName, type, description, canBeSaved, elements = vrMetaNodeGetPropertyByIndex(metanode, i)
+    newRule = ChangePropertyRule
+    newRule.Pattern = getNodePathAsRulePattern(node)
+    newRule.PropertyName = propName
+    newRule.Value = tostring(vrNodeGetValue(node, propName)):gsub(',', '')
+    ruleJson = json.encode(newRule) 
+    rules[i] = ruleJson
+  end
+
+  rulesJsonString = "["
+
+  for i=0, propCount-1, 1 do
+    rulesJsonString = rulesJsonString .. rules[i]
+
+    if i ~= propCount-1 then
+      rulesJsonString = rulesJsonString .. ","
+    end
+  end
+
+  rulesJsonString = rulesJsonString .. "]"
+
+  print(rulesJsonString)
 end
 
 -- Export the plugin functions to the Lua state.
@@ -128,6 +166,6 @@ return {
   init = init,
   cleanup = cleanup,
   createDeleteNodesRuleCallback = createDeleteNodesRuleCallback,
-  contextAssemblyEnabled = contextAssemblyEnabled,
-  contextMaterialProperty = contextMaterialProperty
+  contextPropertyUpdate = contextPropertyUpdate,
+  contextGenerateRuleForAllProperties = contextGenerateRuleForAllProperties
 }
